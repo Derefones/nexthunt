@@ -1,0 +1,935 @@
+# NextHunt Plugin System Configuration
+# This file demonstrates how to extend the framework with plugins
+
+# Plugin manifest structure
+plugin_manifest:
+  name: "example-scanner"
+  version: "1.0.0"
+  description: "Example vulnerability scanner plugin"
+  author: "NextHunt Team"
+  license: "MIT"
+  homepage: "https://github.com/nexthunt/example-scanner"
+  
+  # Plugin metadata
+  metadata:
+    category: "scanner"
+    subcategory: "web"
+    tags: ["web", "api", "owasp", "security"]
+    keywords: ["vulnerability", "scanning", "security", "pentesting"]
+    maturity: "stable"  # alpha, beta, stable, deprecated
+    platform: ["linux", "windows", "darwin"]
+    architecture: ["amd64", "arm64"]
+    
+  # Dependencies and requirements
+  dependencies:
+    nexthunt: ">=1.0.0"
+    services:
+      - reconnaissance
+      - reporting
+    external:
+      - nmap: ">=7.0"
+      - nuclei: ">=2.0"
+      - python: ">=3.9"
+    python_packages:
+      - requests: ">=2.28.0"
+      - beautifulsoup4: ">=4.11.0"
+      - aiohttp: ">=3.8.0"
+    system_packages:
+      - curl
+      - jq
+      
+  # Resource requirements
+  resources:
+    memory: "256Mi"
+    cpu: "0.5"
+    disk: "1Gi"
+    network: true
+    privileged: false
+    
+  # Configuration schema with validation
+  config:
+    schema:
+      type: object
+      required: ["target"]
+      properties:
+        target:
+          type: string
+          format: uri
+          description: "Target URL or IP address"
+        max_threads:
+          type: integer
+          default: 10
+          minimum: 1
+          maximum: 50
+          description: "Maximum number of concurrent threads"
+        timeout:
+          type: integer
+          default: 300
+          minimum: 30
+          maximum: 3600
+          description: "Scan timeout in seconds"
+        custom_templates:
+          type: string
+          pattern: "^/.*"
+          description: "Path to custom vulnerability templates"
+        aggressive_mode:
+          type: boolean
+          default: false
+          description: "Enable aggressive scanning (may be detected)"
+        rate_limit:
+          type: number
+          default: 10.0
+          minimum: 0.1
+          maximum: 100.0
+          description: "Requests per second"
+        exclude_patterns:
+          type: array
+          items:
+            type: string
+          description: "Patterns to exclude from scanning"
+          
+  # Security permissions and restrictions
+  permissions:
+    required:
+      - "scan:create"
+      - "scan:read"
+      - "report:write"
+      - "network:outbound"
+    optional:
+      - "file:read:/tmp"
+      - "exec:nmap"
+      - "exec:nuclei"
+    forbidden:
+      - "system:admin"
+      - "file:write:/etc"
+      - "network:raw_socket"
+      
+  # Sandbox configuration
+  sandbox:
+    enabled: true
+    type: "container"  # container, chroot, vm
+    isolation_level: "high"  # low, medium, high
+    network_policy: "restricted"  # none, restricted, full
+    file_system: "read-only"
+    capabilities: []  # No special capabilities
+    seccomp_profile: "default"
+    apparmor_profile: "default"
+    
+  # API endpoints and hooks
+  hooks:
+    # Lifecycle hooks
+    on_install:
+      handler: "setup.py:install_hook"
+      timeout: 300
+    on_uninstall:
+      handler: "setup.py:uninstall_hook"
+      timeout: 120
+    on_load:
+      handler: "init.py:on_plugin_load"
+      timeout: 30
+    on_unload:
+      handler: "init.py:on_plugin_unload"
+      timeout: 30
+      
+    # Scanning hooks
+    pre_scan:
+      handler: "hooks.py:pre_scan_hook"
+      priority: 10
+      async: true
+    post_scan:
+      handler: "hooks.py:post_scan_hook"
+      priority: 10
+      async: true
+    scan_progress:
+      handler: "hooks.py:scan_progress_hook"
+      priority: 5
+      
+    # Event hooks
+    on_vulnerability_found:
+      handler: "hooks.py:vulnerability_handler"
+      priority: 1
+    on_scan_error:
+      handler: "hooks.py:error_handler"
+      priority: 1
+      
+    # Custom API endpoints
+    api_routes:
+      - path: "/api/v1/plugins/example-scanner/scan"
+        method: "POST"
+        handler: "api.py:scan_handler"
+        auth_required: true
+        rate_limit: "10/min"
+        validation_schema: "scan_request_schema.json"
+      - path: "/api/v1/plugins/example-scanner/status/{scan_id}"
+        method: "GET"
+        handler: "api.py:status_handler"
+        auth_required: true
+        rate_limit: "60/min"
+      - path: "/api/v1/plugins/example-scanner/results/{scan_id}"
+        method: "GET"
+        handler: "api.py:results_handler"
+        auth_required: true
+        rate_limit: "30/min"
+        
+  # Exported functions available to other plugins
+  exports:
+    - name: "custom_scan"
+      handler: "scanner.py:custom_scan"
+      description: "Perform a custom vulnerability scan"
+      parameters:
+        - name: "target"
+          type: "string"
+          required: true
+        - name: "options"
+          type: "object"
+          required: false
+      returns: "scan_result"
+      
+    - name: "parse_results"
+      handler: "parser.py:parse_results"
+      description: "Parse scan results into standard format"
+      parameters:
+        - name: "raw_results"
+          type: "string"
+          required: true
+      returns: "parsed_results"
+      
+    - name: "validate_target"
+      handler: "validator.py:validate_target"
+      description: "Validate if target is scannable"
+      parameters:
+        - name: "target"
+          type: "string"
+          required: true
+      returns: "boolean"
+
+  # Plugin testing and quality assurance
+  testing:
+    unit_tests: "tests/unit/"
+    integration_tests: "tests/integration/"
+    performance_tests: "tests/performance/"
+    security_tests: "tests/security/"
+    coverage_threshold: 80
+    test_command: "python -m pytest tests/"
+    
+  # Documentation and help
+  documentation:
+    readme: "README.md"
+    changelog: "CHANGELOG.md"
+    user_guide: "docs/user-guide.md"
+    api_reference: "docs/api.md"
+    examples: "examples/"
+    
+  # Plugin validation and signing
+  validation:
+    code_analysis: true
+    dependency_check: true
+    vulnerability_scan: true
+    performance_test: true
+    signature_required: true
+    certificate: "plugin-signing.crt"
+
+# Enhanced plugin registry with categories and security
+plugin_registry:
+  # Core plugins (built-in, always available)
+  core:
+    - name: "subdomain-enumeration"
+      enabled: true
+      version: "1.2.0"
+      category: "reconnaissance"
+      security_level: "safe"
+      config:
+        resolvers: ["8.8.8.8", "1.1.1.1", "1.0.0.1"]
+        wordlists: ["/usr/share/wordlists/subdomains.txt"]
+        timeout: 300
+        
+    - name: "port-scanner"
+      enabled: true
+      version: "1.1.0"
+      category: "reconnaissance"
+      security_level: "safe"
+      config:
+        ports: "1-65535"
+        rate_limit: 1000
+        scan_types: ["tcp", "udp", "syn"]
+        
+    - name: "ssl-analyzer"
+      enabled: true
+      version: "1.0.0"
+      category: "reconnaissance"
+      security_level: "safe"
+      config:
+        check_certificates: true
+        check_ciphers: true
+        check_protocols: true
+        
+  # Community plugins (curated and verified)
+  community:
+    - name: "shodan-integration"
+      source: "https://github.com/nexthunt/shodan-plugin"
+      version: "1.2.0"
+      enabled: true
+      category: "intelligence"
+      security_level: "medium"
+      verified: true
+      signature: "sha256:abc123..."
+      config:
+        api_key: "${SHODAN_API_KEY}"
+        rate_limit: 1
+        cache_results: true
+        
+    - name: "nuclei-scanner"
+      source: "https://github.com/nexthunt/nuclei-plugin"
+      version: "2.0.0"
+      enabled: true
+      category: "scanning"
+      security_level: "medium"
+      verified: true
+      signature: "sha256:def456..."
+      config:
+        templates_path: "/plugins/nuclei/templates"
+        update_templates: true
+        severity_filter: ["medium", "high", "critical"]
+        
+    - name: "wappalyzer-integration"
+      source: "https://github.com/nexthunt/wappalyzer-plugin"
+      version: "1.0.0"
+      enabled: true
+      category: "reconnaissance"
+      security_level: "safe"
+      verified: true
+      config:
+        detect_technologies: true
+        confidence_threshold: 50
+        
+    - name: "burp-integration"
+      source: "https://github.com/nexthunt/burp-plugin"
+      version: "1.0.0"
+      enabled: false
+      category: "scanning"
+      security_level: "high"
+      requires_license: true
+      config:
+        burp_path: "/opt/burp"
+        professional_mode: true
+        
+  # Custom/Enterprise plugins
+  custom:
+    - name: "company-specific-scanner"
+      source: "file:///plugins/custom/company-scanner"
+      enabled: false
+      category: "scanning"
+      security_level: "high"
+      internal: true
+      config:
+        internal_api: "https://internal.company.com/api"
+        auth_token: "${INTERNAL_API_TOKEN}"
+        
+    - name: "compliance-checker"
+      source: "file:///plugins/enterprise/compliance"
+      enabled: false
+      category: "compliance"
+      security_level: "medium"
+      license_required: true
+      config:
+        standards: ["PCI-DSS", "GDPR", "SOX"]
+        audit_level: "detailed"
+
+# Enhanced plugin communication and messaging
+plugin_communication:
+  # Message bus for inter-plugin communication
+  message_bus:
+    type: "redis"
+    encryption: true
+    authentication: true
+    config:
+      host: "redis"
+      port: 6379
+      password: "${REDIS_PASSWORD}"
+      ssl: true
+      db: 1  # Separate database for plugin messages
+      channels:
+        - "scan.started"
+        - "scan.progress"
+        - "scan.completed"
+        - "scan.failed"
+        - "vulnerability.found"
+        - "vulnerability.verified"
+        - "report.generated"
+        - "alert.triggered"
+        
+  # Event system for plugin coordination
+  events:
+    handlers:
+      scan_started:
+        - plugin: "progress-tracker"
+          handler: "track_scan_start"
+        - plugin: "notification-service"
+          handler: "send_start_notification"
+      vulnerability_found:
+        - plugin: "risk-calculator"
+          handler: "calculate_risk_score"
+        - plugin: "deduplicator"
+          handler: "check_duplicate"
+        - plugin: "alert-system"
+          handler: "send_alert"
+          
+  # Shared data store with access control
+  shared_store:
+    type: "redis"
+    encryption: true
+    access_control: true
+    config:
+      host: "redis"
+      port: 6379
+      password: "${REDIS_PASSWORD}"
+      ssl: true
+      db: 2  # Separate database for shared data
+      ttl: 3600
+      namespaces:
+        targets: "targets:"
+        results: "results:"
+        cache: "cache:"
+        sessions: "sessions:"
+        
+# Comprehensive plugin security framework
+plugin_security:
+  # Multi-layer sandboxing
+  sandbox:
+    enabled: true
+    layers:
+      - type: "container"
+        runtime: "runc"
+        config:
+          memory_limit: "512m"
+          cpu_limit: "1.0"
+          network_mode: "bridge"
+          read_only_root: true
+          no_new_privileges: true
+          user: "plugin:plugin"
+          
+      - type: "seccomp"
+        profile: "restricted"
+        allowed_syscalls:
+          - "read"
+          - "write"
+          - "open"
+          - "close"
+          - "socket"
+          - "connect"
+          - "sendto"
+          - "recvfrom"
+          
+      - type: "apparmor"
+        profile: "nexthunt-plugin"
+        rules:
+          - "deny /etc/** w"
+          - "deny /sys/** w"
+          - "deny /proc/sys/** w"
+          - "allow /tmp/** rw"
+          - "allow /var/lib/nexthunt/plugins/** rw"
+          
+  # Fine-grained permission system
+  permissions:
+    categories:
+      file:
+        - "read:/tmp"
+        - "write:/tmp"
+        - "read:/var/lib/nexthunt/plugins"
+        - "write:/var/lib/nexthunt/plugins"
+      network:
+        - "outbound:http"
+        - "outbound:https"
+        - "outbound:dns"
+        - "inbound:none"
+      exec:
+        - "nmap"
+        - "curl"
+        - "dig"
+      api:
+        - "scan:create"
+        - "scan:read"
+        - "scan:update"
+        - "report:create"
+        - "report:read"
+        
+    # Role-based access control
+    roles:
+      scanner:
+        permissions:
+          - "scan:*"
+          - "network:outbound:*"
+          - "file:read:/tmp"
+          - "file:write:/tmp"
+      reporter:
+        permissions:
+          - "report:*"
+          - "scan:read"
+          - "file:read:/var/lib/nexthunt/reports"
+          - "file:write:/var/lib/nexthunt/reports"
+      intelligence:
+        permissions:
+          - "api:external:*"
+          - "network:outbound:*"
+          - "scan:read"
+          
+    # Default permissions for all plugins
+    default:
+      - "read:targets"
+      - "write:scan_results"
+      - "read:configuration"
+      - "network:outbound:dns"
+      
+    # Plugin-specific permission overrides
+    plugins:
+      "nuclei-scanner":
+        additional:
+          - "execute:external_commands"
+          - "network:outbound:*"
+          - "file:read:/usr/share/nuclei-templates"
+        denied: []
+        
+      "reporting-plugin":
+        additional:
+          - "read:all_results"
+          - "write:reports"
+          - "send:notifications"
+          - "file:write:/var/lib/nexthunt/reports"
+        denied: []
+        
+      "metasploit-integration":
+        additional:
+          - "execute:metasploit"
+          - "network:raw_socket"
+        denied: []
+        security_review_required: true
+        
+  # Code analysis and validation
+  code_analysis:
+    static_analysis:
+      enabled: true
+      tools: ["bandit", "semgrep", "gosec", "eslint"]
+      severity_threshold: "medium"
+      
+    dependency_scanning:
+      enabled: true
+      tools: ["safety", "audit", "snyk"]
+      vulnerability_threshold: "high"
+      
+    runtime_monitoring:
+      enabled: true
+      syscall_monitoring: true
+      network_monitoring: true
+      file_access_monitoring: true
+      
+  # Plugin signing and verification
+  signing:
+    required: true
+    algorithm: "RSA-PSS"
+    key_size: 4096
+    hash_algorithm: "SHA-256"
+    certificate_authority: "NextHunt Plugin CA"
+    revocation_check: true
+
+# Plugin development framework and tools
+plugin_development:
+  # Standardized plugin structure
+  template:
+    structure:
+      - plugin.yaml           # Plugin manifest (required)
+      - __init__.py          # Plugin initialization (required)
+      - main.py             # Main plugin logic (required)
+      - requirements.txt    # Python dependencies
+      - go.mod             # Go dependencies
+      - package.json       # Node.js dependencies
+      - Dockerfile         # Container definition
+      - README.md          # Documentation (required)
+      - CHANGELOG.md       # Version history
+      - LICENSE            # License file (required)
+      - .gitignore         # Git ignore rules
+      - tests/             # Unit and integration tests (required)
+        - __init__.py
+        - test_main.py
+        - test_integration.py
+      - docs/              # Additional documentation
+        - user-guide.md
+        - api-reference.md
+      - examples/          # Usage examples
+        - basic_usage.py
+        - advanced_usage.py
+      - scripts/           # Helper scripts
+        - setup.sh
+        - test.sh
+        - build.sh
+        
+  # Development environment setup
+  environment:
+    base_images:
+      python: "nexthunt/plugin-python:3.11"
+      go: "nexthunt/plugin-go:1.21"
+      node: "nexthunt/plugin-node:18"
+      rust: "nexthunt/plugin-rust:1.70"
+      
+    development_tools:
+      - git
+      - vim
+      - curl
+      - jq
+      - python3
+      - pip
+      - go
+      - node
+      - npm
+      
+  # CLI commands for plugin management
+  cli_commands:
+    create: "nexthunt plugin create <name> --template <template> --language <lang>"
+    install: "nexthunt plugin install <source> [--version <version>]"
+    uninstall: "nexthunt plugin uninstall <name>"
+    list: "nexthunt plugin list [--category <category>] [--status <status>]"
+    enable: "nexthunt plugin enable <name>"
+    disable: "nexthunt plugin disable <name>"
+    update: "nexthunt plugin update <name> [--version <version>]"
+    search: "nexthunt plugin search <query> [--category <category>]"
+    info: "nexthunt plugin info <name>"
+    test: "nexthunt plugin test <name> [--coverage]"
+    validate: "nexthunt plugin validate <path>"
+    publish: "nexthunt plugin publish <path> [--registry <registry>]"
+    sign: "nexthunt plugin sign <path> --key <key-file>"
+    verify: "nexthunt plugin verify <path> [--cert <cert-file>]"
+    
+  # Testing framework
+  testing:
+    unit_test_framework: "pytest"
+    integration_test_framework: "pytest"
+    performance_test_framework: "locust"
+    security_test_framework: "bandit"
+    
+    test_environments:
+      - name: "minimal"
+        description: "Basic testing environment"
+        services: ["redis"]
+      - name: "standard"
+        description: "Standard testing environment"
+        services: ["redis", "postgres"]
+      - name: "full"
+        description: "Complete testing environment"
+        services: ["redis", "postgres", "elasticsearch"]
+        
+    mocking:
+      external_apis: true
+      file_system: true
+      network: true
+      
+  # Quality assurance and metrics
+  quality_metrics:
+    code_coverage: 80
+    complexity_threshold: 10
+    documentation_coverage: 90
+    test_pass_rate: 100
+    security_score: 85
+    performance_benchmark: true
+    
+  # Continuous integration
+  ci_cd:
+    pipeline_template: ".github/workflows/plugin-ci.yml"
+    stages:
+      - lint
+      - test
+      - security_scan
+      - build
+      - package
+      - sign
+      - publish
+      
+    automated_testing:
+      on_commit: true
+      on_pr: true
+      nightly: true
+      
+# Plugin marketplace and distribution
+marketplace:
+  enabled: true
+  url: "https://marketplace.nexthunt.io"
+  api_endpoint: "https://api.marketplace.nexthunt.io/v1"
+  
+  categories:
+    - reconnaissance
+    - intelligence
+    - scanning
+    - exploitation
+    - reporting
+    - compliance
+    - automation
+    - integration
+    
+  submission_process:
+    review_required: true
+    security_scan: true
+    performance_test: true
+    documentation_check: true
+    license_verification: true
+    
+  licensing:
+    supported_licenses:
+      - "MIT"
+      - "Apache-2.0"
+      - "BSD-3-Clause"
+      - "GPL-3.0"
+      - "Commercial"
+      
+  monetization:
+    free_plugins: true
+    paid_plugins: true
+    subscription_model: true
+    enterprise_licensing: true
+    
+  analytics:
+    download_tracking: true
+    usage_metrics: true
+    performance_analytics: true
+    error_reporting: true
+
+NextHunt Framework Plugin System Documentation
+==============================================
+
+## Overview
+The NextHunt plugin system provides a secure, extensible architecture for adding custom functionality to the cybersecurity assessment framework. It supports dynamic loading, sandboxed execution, and comprehensive security controls.
+
+## Architecture
+
+### Core Components
+1. **Plugin Manager**: Central orchestration and lifecycle management
+2. **Security Sandbox**: Isolated execution environment
+3. **API Gateway**: Secure communication interface
+4. **Marketplace**: Plugin distribution and management
+5. **Development SDK**: Tools and libraries for plugin creation
+
+### Plugin Types
+- **Scanner Plugins**: Custom vulnerability scanners and detection engines
+- **Intelligence Plugins**: Threat intelligence sources and analyzers
+- **Reporting Plugins**: Custom report formats and visualizations
+- **Integration Plugins**: Third-party tool and service connectors
+- **Automation Plugins**: Workflow and orchestration extensions
+
+## Security Model
+
+### Sandboxing
+- **Container Isolation**: Each plugin runs in isolated Docker container
+- **Resource Limits**: CPU, memory, and network constraints
+- **File System Access**: Read-only access to specified directories
+- **Network Restrictions**: Limited outbound connectivity with allowlists
+
+### Permission System
+- **Explicit Permissions**: Plugins must declare required capabilities
+- **Least Privilege**: Minimal permissions granted by default
+- **Runtime Validation**: Continuous permission enforcement
+- **Audit Logging**: Complete permission usage tracking
+
+### Code Security
+- **Static Analysis**: Automated security scanning before deployment
+- **Code Signing**: Cryptographic verification of plugin integrity
+- **Dependency Scanning**: Third-party library vulnerability assessment
+- **Runtime Monitoring**: Behavioral analysis during execution
+
+## Plugin Marketplace
+
+### Distribution
+- **Verified Publishers**: Authenticated and verified developers
+- **Security Ratings**: Automated security assessment scores
+- **Community Reviews**: User feedback and ratings system
+- **Update Mechanism**: Automated security and feature updates
+
+### Categories
+- **Official Plugins**: Developed and maintained by NextHunt team
+- **Certified Plugins**: Third-party plugins meeting security standards
+- **Community Plugins**: User-contributed extensions
+- **Enterprise Plugins**: Commercial and licensed extensions
+
+## Development Framework
+
+### SDK Components
+- **Core Libraries**: Authentication, logging, configuration management
+- **API Bindings**: Type-safe interfaces to NextHunt services
+- **Testing Framework**: Unit and integration testing utilities
+- **Documentation Tools**: Automatic API documentation generation
+
+### Development Process
+1. **Setup**: Install NextHunt SDK and development environment
+2. **Create**: Generate plugin template with required structure
+3. **Develop**: Implement functionality using provided APIs
+4. **Test**: Execute comprehensive test suite
+5. **Package**: Build distributable plugin package
+6. **Submit**: Upload to marketplace for review
+7. **Deploy**: Automatic distribution after approval
+
+### Plugin Structure
+```
+plugin-name/
+├── plugin.yaml          # Plugin metadata and configuration
+├── src/                  # Source code directory
+│   ├── main.py          # Plugin entry point
+│   ├── handlers/        # Event and request handlers
+│   └── utils/           # Utility functions
+├── tests/               # Test suite
+├── docs/                # Documentation
+├── requirements.txt     # Dependencies
+└── Dockerfile          # Container configuration
+```
+
+## API Integration
+
+### Core APIs
+- **Authentication API**: User and service authentication
+- **Scanning API**: Vulnerability assessment interfaces
+- **Intelligence API**: Threat data and analysis
+- **Reporting API**: Report generation and formatting
+- **Configuration API**: System and plugin configuration
+
+### Event System
+- **Scan Events**: Start, progress, completion notifications
+- **Security Events**: Threat detection and alerting
+- **System Events**: Service status and health monitoring
+- **Custom Events**: Plugin-defined event types
+
+### Data Access
+- **Read Operations**: Query scan results and system data
+- **Write Operations**: Store plugin-generated data
+- **Real-time Streams**: Live data feeds and updates
+- **Bulk Operations**: Efficient batch processing
+
+## Configuration Management
+
+### Plugin Configuration
+- **Environment Variables**: Runtime configuration parameters
+- **Configuration Files**: Structured settings in YAML/JSON
+- **Secrets Management**: Secure handling of API keys and credentials
+- **Dynamic Updates**: Runtime configuration changes
+
+### System Integration
+- **Service Discovery**: Automatic detection of available services
+- **Load Balancing**: Distribution across multiple plugin instances
+- **Health Checks**: Monitoring and automatic recovery
+- **Logging Integration**: Centralized log aggregation
+
+## Monitoring and Observability
+
+### Metrics Collection
+- **Performance Metrics**: Execution time, resource usage
+- **Business Metrics**: Plugin usage, success rates
+- **Security Metrics**: Permission usage, anomaly detection
+- **Custom Metrics**: Plugin-specific measurements
+
+### Logging
+- **Structured Logging**: JSON-formatted log entries
+- **Log Levels**: Debug, info, warning, error, critical
+- **Context Preservation**: Request tracing and correlation
+- **Sensitive Data Protection**: Automatic redaction
+
+### Alerting
+- **Performance Alerts**: Resource exhaustion, slow execution
+- **Security Alerts**: Suspicious behavior, permission violations
+- **Business Alerts**: Plugin failures, threshold breaches
+- **Custom Alerts**: Plugin-defined alert conditions
+
+## Best Practices
+
+### Security
+- **Input Validation**: Sanitize all external inputs
+- **Output Encoding**: Prevent injection attacks
+- **Error Handling**: Avoid information leakage
+- **Dependency Management**: Keep libraries updated
+
+### Performance
+- **Async Operations**: Use non-blocking I/O patterns
+- **Resource Cleanup**: Proper resource deallocation
+- **Caching**: Implement appropriate caching strategies
+- **Batch Processing**: Optimize for bulk operations
+
+### Reliability
+- **Error Recovery**: Graceful handling of failures
+- **Idempotency**: Safe retry mechanisms
+- **Circuit Breakers**: Prevent cascade failures
+- **Health Checks**: Implement readiness probes
+
+## Examples
+
+### Scanner Plugin Template
+```python
+from nexthunt import Plugin, ScanResult, Vulnerability
+
+class CustomScanner(Plugin):
+    def __init__(self):
+        super().__init__(
+            name="custom-scanner",
+            version="1.0.0",
+            description="Custom vulnerability scanner"
+        )
+    
+    async def scan(self, target, options):
+        # Implement scanning logic
+        vulnerabilities = await self.perform_scan(target)
+        
+        return ScanResult(
+            target=target,
+            vulnerabilities=vulnerabilities,
+            metadata={"scanner": "custom-scanner"}
+        )
+```
+
+### Intelligence Plugin Template
+```python
+from nexthunt import Plugin, ThreatData
+
+class ThreatIntelligence(Plugin):
+    def __init__(self):
+        super().__init__(
+            name="threat-intel",
+            version="1.0.0",
+            description="Custom threat intelligence source"
+        )
+    
+    async def analyze(self, indicators):
+        # Implement analysis logic
+        threats = await self.query_threat_data(indicators)
+        
+        return ThreatData(
+            indicators=indicators,
+            threats=threats,
+            confidence=0.95
+        )
+```
+
+## Troubleshooting
+
+### Common Issues
+- **Permission Denied**: Check plugin permissions and sandbox configuration
+- **Resource Limits**: Monitor CPU and memory usage
+- **Network Connectivity**: Verify firewall and proxy settings
+- **API Errors**: Check authentication and rate limiting
+
+### Debug Mode
+- **Verbose Logging**: Enable detailed execution traces
+- **Interactive Debugging**: Attach debugger to plugin container
+- **Test Environment**: Isolated testing with sample data
+- **Performance Profiling**: Identify bottlenecks and optimizations
+
+## Support and Resources
+
+### Documentation
+- **API Reference**: Complete API documentation
+- **Tutorials**: Step-by-step development guides
+- **Examples**: Sample plugins and use cases
+- **Best Practices**: Security and performance guidelines
+
+### Community
+- **Developer Forum**: Community support and discussions
+- **GitHub Repository**: Source code and issue tracking
+- **Slack Channel**: Real-time developer communication
+- **Webinars**: Regular training and updates
+
+### Commercial Support
+- **Professional Services**: Custom plugin development
+- **Training**: On-site and remote training programs
+- **SLA Support**: Enterprise support agreements
+- **Consulting**: Architecture and security reviews

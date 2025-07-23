@@ -1,0 +1,402 @@
+{
+  "metadata": {
+    "name": "NextHunt Framework",
+    "version": "1.0.0",
+    "description": "Comprehensive cybersecurity assessment platform",
+    "author": "NextHunt Team",
+    "license": "MIT"
+  },
+  "services": {
+    "api-gateway": {
+      "name": "API Gateway",
+      "description": "Central access point for all services",
+      "language": "python",
+      "port": 8000,
+      "public": true,
+      "resources": {
+        "memory": "256Mi",
+        "cpu": "0.5"
+      },
+      "dependencies": ["postgres", "redis"],
+      "healthcheck": {
+        "endpoint": "/health",
+        "interval": 30,
+        "timeout": 10,
+        "retries": 3
+      },
+      "features": {
+        "authentication": true,
+        "rate_limiting": true,
+        "metrics": true
+      }
+    },
+    "reconnaissance": {
+      "name": "Reconnaissance",
+      "description": "Target discovery and information gathering",
+      "language": "python",
+      "port": 8080,
+      "public": false,
+      "resources": {
+        "memory": "512Mi",
+        "cpu": "1.0"
+      },
+      "dependencies": ["redis"],
+      "healthcheck": {
+        "endpoint": "/health",
+        "interval": 30,
+        "timeout": 10,
+        "retries": 3
+      },
+      "features": {
+        "subdomain_enumeration": true,
+        "port_scanning": true,
+        "network_mapping": true,
+        "osint_gathering": true,
+        "rate_limiting": true
+      },
+      "tools": [
+        "nmap",
+        "massdns",
+        "subfinder",
+        "amass",
+        "dnsx"
+      ]
+    },
+    "intelligence": {
+      "name": "Intelligence",
+      "description": "Threat intelligence analysis",
+      "language": "python",
+      "port": 8081,
+      "public": false,
+      "resources": {
+        "memory": "512Mi",
+        "cpu": "0.5"
+      },
+      "dependencies": ["postgres"],
+      "healthcheck": {
+        "endpoint": "/health",
+        "interval": 30,
+        "timeout": 10,
+        "retries": 3
+      },
+      "features": {
+        "reputation_checking": true,
+        "threat_feed_integration": true,
+        "vulnerability_matching": true,
+        "historical_analysis": true
+      },
+      "integrations": [
+        {
+          "name": "VirusTotal",
+          "enabled": true,
+          "config": {
+            "api_key_env": "VIRUSTOTAL_API_KEY",
+            "rate_limit": 4
+          }
+        },
+        {
+          "name": "AlienVault OTX",
+          "enabled": true,
+          "config": {
+            "api_key_env": "OTX_API_KEY",
+            "rate_limit": 10
+          }
+        },
+        {
+          "name": "Shodan",
+          "enabled": true,
+          "config": {
+            "api_key_env": "SHODAN_API_KEY",
+            "rate_limit": 1
+          }
+        }
+      ]
+    },
+    "scanning": {
+      "name": "Scanning",
+      "description": "Vulnerability scanning and analysis",
+      "language": "python",
+      "port": 8084,
+      "public": false,
+      "resources": {
+        "memory": "1Gi",
+        "cpu": "1.0"
+      },
+      "dependencies": ["redis"],
+      "healthcheck": {
+        "endpoint": "/health",
+        "interval": 30,
+        "timeout": 10,
+        "retries": 3
+      },
+      "features": {
+        "vulnerability_scanning": true,
+        "web_scanning": true,
+        "api_scanning": true,
+        "misconfig_detection": true,
+        "compliance_checking": true,
+        "cve_matching": true
+      },
+      "tools": [
+        "nuclei",
+        "nikto",
+        "wapiti",
+        "zap",
+        "trivy"
+      ],
+      "concurrent_scans": 5
+    },
+    "exploitation": {
+      "name": "Exploitation",
+      "description": "Controlled exploitation and validation",
+      "language": "python",
+      "port": 8083,
+      "public": false,
+      "resources": {
+        "memory": "512Mi",
+        "cpu": "0.5"
+      },
+      "dependencies": ["redis"],
+      "healthcheck": {
+        "endpoint": "/health",
+        "interval": 30,
+        "timeout": 10,
+        "retries": 3
+      },
+      "features": {
+        "safe_exploitation": true,
+        "vulnerability_validation": true,
+        "payload_generation": true
+      },
+      "requires_authorization": true
+    },
+    "reporting": {
+      "name": "Reporting",
+      "description": "Report generation and management",
+      "language": "python",
+      "port": 8085,
+      "public": false,
+      "resources": {
+        "memory": "512Mi",
+        "cpu": "0.5"
+      },
+      "dependencies": ["postgres"],
+      "healthcheck": {
+        "endpoint": "/health",
+        "interval": 30,
+        "timeout": 10,
+        "retries": 3
+      },
+      "features": {
+        "pdf_generation": true,
+        "html_reports": true,
+        "csv_export": true,
+        "json_export": true,
+        "executive_summaries": true,
+        "technical_details": true,
+        "remediation_advice": true,
+        "charts_and_graphs": true
+      },
+      "templates": [
+        "executive",
+        "technical",
+        "compliance",
+        "developer",
+        "pentest"
+      ]
+    },
+    "postgres": {
+      "name": "PostgreSQL",
+      "description": "Primary database",
+      "image": "postgres:15-alpine",
+      "port": 5432,
+      "resources": {
+        "memory": "512Mi",
+        "cpu": "0.5"
+      },
+      "volume": "postgres_data",
+      "healthcheck": {
+        "command": ["pg_isready", "-U", "nexthunt"],
+        "interval": 30,
+        "timeout": 10,
+        "retries": 3
+      }
+    },
+    "redis": {
+      "name": "Redis",
+      "description": "Cache and message broker",
+      "image": "redis:7-alpine",
+      "port": 6379,
+      "resources": {
+        "memory": "256Mi",
+        "cpu": "0.2"
+      },
+      "volume": "redis_data",
+      "healthcheck": {
+        "command": ["redis-cli", "ping"],
+        "interval": 30,
+        "timeout": 10,
+        "retries": 3
+      }
+    }
+  },
+  "security": {
+    "authentication": {
+      "type": "jwt",
+      "token_expiry": 3600,
+      "refresh_token_expiry": 86400
+    },
+    "api_keys": {
+      "enabled": true,
+      "rotation_period": 90
+    },
+    "rate_limiting": {
+      "enabled": true,
+      "default_limit": 60,
+      "window_seconds": 60
+    },
+    "cors": {
+      "enabled": false,
+      "allowed_origins": [],
+      "allowed_methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+      "allowed_headers": ["Content-Type", "Authorization"],
+      "expose_headers": ["Content-Length"],
+      "max_age": 3600
+    },
+    "encryption": {
+      "at_rest": true,
+      "in_transit": true,
+      "key_rotation": 90
+    },
+    "audit": {
+      "enabled": true,
+      "log_level": "INFO",
+      "retention_days": 90,
+      "log_user_actions": true,
+      "log_api_access": true
+    },
+    "tls": {
+      "enabled": true,
+      "min_version": "TLSv1.2",
+      "preferred_ciphers": [
+        "ECDHE-RSA-AES256-GCM-SHA384",
+        "ECDHE-RSA-AES128-GCM-SHA256"
+      ]
+    },
+    "access_control": {
+      "rbac_enabled": true,
+      "default_role": "viewer",
+      "roles": [
+        {
+          "name": "admin",
+          "permissions": ["*"]
+        },
+        {
+          "name": "operator",
+          "permissions": [
+            "scan:*",
+            "report:*",
+            "intel:read",
+            "recon:read",
+            "config:read"
+          ]
+        },
+        {
+          "name": "analyst",
+          "permissions": [
+            "scan:read",
+            "report:read",
+            "report:create",
+            "intel:read",
+            "recon:read"
+          ]
+        },
+        {
+          "name": "viewer",
+          "permissions": [
+            "scan:read",
+            "report:read",
+            "intel:read"
+          ]
+        }
+      ]
+    }
+  },
+  "infrastructure": {
+    "monitoring": {
+      "prometheus": {
+        "enabled": true,
+        "retention_days": 15,
+        "scrape_interval": 15
+      },
+      "grafana": {
+        "enabled": true,
+        "default_dashboards": [
+          "system-metrics",
+          "service-health",
+          "security-events",
+          "scan-performance"
+        ]
+      },
+      "alerting": {
+        "enabled": true,
+        "notifications": ["email", "slack"]
+      }
+    },
+    "logging": {
+      "enabled": true,
+      "level": "INFO",
+      "format": "json",
+      "retention_days": 30
+    },
+    "backup": {
+      "enabled": true,
+      "schedule": "0 2 * * *",
+      "retention_count": 30
+    },
+    "database": {
+      "backup": {
+        "enabled": true,
+        "schedule": "0 1 * * *",
+        "retention_days": 30
+      },
+      "high_availability": false
+    },
+    "scaling": {
+      "auto_scaling": false,
+      "min_replicas": 1,
+      "max_replicas": 5,
+      "target_cpu_utilization": 70
+    }
+  },
+  "plugin_system": {
+    "enabled": true,
+    "plugin_directory": "plugins",
+    "sandbox_enabled": true,
+    "allowed_languages": ["python", "go", "node"],
+    "required_manifest_fields": [
+      "name",
+      "version",
+      "author",
+      "description"
+    ]
+  },
+  "compliance": {
+    "standards": [
+      "OWASP",
+      "NIST",
+      "ISO27001",
+      "PCI-DSS",
+      "GDPR"
+    ],
+    "data_retention": {
+      "scan_results": 90,
+      "reports": 365,
+      "audit_logs": 180
+    },
+    "data_protection": {
+      "pii_identification": true,
+      "data_masking": true
+    }
+  }
+}
